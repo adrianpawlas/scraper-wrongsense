@@ -1,6 +1,7 @@
 import os
 import io
 import json
+import time
 import base64
 import numpy as np
 import torch
@@ -13,6 +14,7 @@ from tqdm import tqdm
 
 MODEL_NAME = "google/siglip-base-patch16-384"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+EMBEDDING_DELAY = 0.5
 
 
 class SigLIPEmbedder:
@@ -108,6 +110,7 @@ class SigLIPEmbedder:
             if images:
                 primary_image = images[0]
                 img_embedding = self.get_image_embedding(primary_image)
+                time.sleep(EMBEDDING_DELAY)
                 processed['image_embedding'] = img_embedding.tolist() if img_embedding is not None else None
                 processed['image_url'] = primary_image
                 processed['additional_images'] = ", ".join(images[1:]) if len(images) > 1 else None
@@ -138,6 +141,7 @@ class SigLIPEmbedder:
             
             if full_text:
                 text_embedding = self.get_text_embedding(full_text)
+                time.sleep(EMBEDDING_DELAY)
                 processed['info_embedding'] = text_embedding.tolist() if text_embedding is not None else None
             else:
                 processed['info_embedding'] = None
