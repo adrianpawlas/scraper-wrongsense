@@ -159,7 +159,9 @@ class SupabaseImporter:
     def get_existing_products(self) -> dict:
         try:
             response = self.client.table('products').select('id, product_url, image_url, title, created_at').eq('source', 'scraper-wrongsense').execute()
-            return {p['product_url']: p for p in response.data}
+            if hasattr(response, 'data') and response.data:
+                return {p['product_url']: p for p in response.data}
+            return {}
         except Exception as e:
             print(f"Error fetching existing products: {e}")
             return {}
@@ -249,18 +251,23 @@ class SupabaseImporter:
                 self.client.table('products').upsert(records_to_insert, on_conflict='source,product_url').execute()
                 return
             except Exception as e:
+                error_msg = str(e)
                 if attempt == MAX_RETRIES - 1:
-                    print(f"Batch insert failed after {MAX_RETRIES} retries: {e}")
+                    print(f"Batch insert failed after {MAX_RETRIES} retries: {error_msg}")
                     for rec in records_to_insert:
-                        logger.error(f"Failed: {rec.get('product_url')}")
+                        logger.error(f"Failed: {rec.get('product_url', 'unknown')}")
                     self.stats['failed'] += len(records_to_insert)
                 time.sleep(1)
 
     def import_products(self, products_file: str = "products_with_embeddings.json"):
         if not self.client:
             self.connect()
-        with open(products_file, 'r', encoding='utf-8') as f:
-            products = json.load(f)
+        try:
+            with open(products_file, 'r', encoding='utf-8') as f:
+                products = json.load(f)
+        except Exception as e:
+            print(f"Error reading products file: {e}")
+            return
         existing_products = self.get_existing_products()
         for i in range(0, len(products), BATCH_SIZE):
             batch = products[i:i+BATCH_SIZE]
