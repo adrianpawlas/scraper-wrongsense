@@ -26,11 +26,12 @@ class WrongSenseScraper:
     def __init__(self):
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
+        self.playwright = None
         self.scraped_products = []
 
     async def init_browser(self):
-        playwright = await async_playwright().start()
-        self.browser = await playwright.chromium.launch(
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch(
             headless=True,
             args=['--disable-blink-features=AutomationControlled']
         )
@@ -39,11 +40,13 @@ class WrongSenseScraper:
             user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         )
         self.page = await context.new_page()
-        await self.page.set_default_timeout(60000)
+        await self.page.route("*", lambda route: route.continue_())
 
     async def close(self):
         if self.browser:
             await self.browser.close()
+        if self.playwright:
+            await self.playwright.stop()
 
     async def wait_forproducts(self, timeout: int = 10000) -> bool:
         for selector in PRODUCT_SELECTORS:
