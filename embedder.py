@@ -47,8 +47,11 @@ class SigLIPEmbedder:
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             with torch.no_grad():
-                image_features = self.model.get_image_features(**inputs)
-                embedding = image_features.squeeze().cpu().numpy()
+                outputs = self.model.get_image_features(**inputs)
+                if hasattr(outputs, 'pooler_output'):
+                    embedding = outputs.pooler_output.squeeze().cpu().numpy()
+                else:
+                    embedding = outputs.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()
             
             return embedding
             
@@ -61,12 +64,22 @@ class SigLIPEmbedder:
             self.load_model()
             
         try:
+            max_tokens = 64
+            text = text[:500]
             inputs = self.processor(text=text, return_tensors="pt")
+            if inputs['input_ids'].shape[1] > max_tokens:
+                inputs['input_ids'] = inputs['input_ids'][:, :max_tokens]
+                if 'attention_mask' in inputs:
+                    inputs['attention_mask'] = inputs['attention_mask'][:, :max_tokens]
+            
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             with torch.no_grad():
-                text_features = self.model.get_text_features(**inputs)
-                embedding = text_features.squeeze().cpu().numpy()
+                outputs = self.model.get_text_features(**inputs)
+                if hasattr(outputs, 'pooler_output'):
+                    embedding = outputs.pooler_output.squeeze().cpu().numpy()
+                else:
+                    embedding = outputs.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()
             
             return embedding
             
