@@ -1,0 +1,71 @@
+name: Run Wrong Sense Scraper
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - scrape
+          - embed
+          - import-db
+  schedule:
+    - cron: '0 9 * * 1,4'
+      description: 'Run every Monday and Thursday at 9 AM'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: |
+          pip install playwright
+          playwright install chromium
+          playwright install-deps
+
+      - name: Run scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.mode }}" != "" ]; then
+            ./run.sh ${{ github.event.inputs.mode }}
+          else
+            ./run.sh all
+          fi
+        shell: bash
+
+      - name: Upload artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-outputs
+          path: |
+            scraped_products.json
+            product_urls.txt
+            products_with_embeddings.json
+          retention-days: 7
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-logs
+          path: run.log
+          retention-days: 7
