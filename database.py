@@ -158,7 +158,7 @@ class SupabaseImporter:
 
     def get_existing_products(self) -> dict:
         try:
-            response = self.client.table('products').select('id, product_url, image_url, title, updated_at').eq('source', 'scraper-wrongsense').execute()
+            response = self.client.table('products').select('id, product_url, image_url, title, created_at').eq('source', 'scraper-wrongsense').execute()
             return {p['product_url']: p for p in response.data}
         except Exception as e:
             print(f"Error fetching existing products: {e}")
@@ -210,7 +210,6 @@ class SupabaseImporter:
             'additional_images': additional,
             'image_embedding': self.format_embedding(image_embedding),
             'info_embedding': self.format_embedding(info_embedding),
-            'updated_at': datetime.now().isoformat()
         }
 
     def batch_upsert(self, batch: list, existing_products: dict, products_with_embeddings: list) -> None:
@@ -271,20 +270,12 @@ class SupabaseImporter:
         self.print_summary()
 
     def cleanup_stale_products(self, existing_products: dict):
-        stale_threshold = datetime.now().timestamp() - (STALE_THRESHOLD_RUNS * 3 * 24 * 3600)
         if not self.seen_product_urls:
             return
         stale = []
         for url, data in existing_products.items():
             if url not in self.seen_product_urls:
-                try:
-                    updated = data.get('updated_at')
-                    if updated:
-                        ts = datetime.fromisoformat(updated.replace('Z', '+00:00')).timestamp()
-                        if ts < stale_threshold:
-                            stale.append(data['id'])
-                except:
-                    stale.append(data['id'])
+                stale.append(data['id'])
         if stale:
             for i in range(0, len(stale), BATCH_SIZE):
                 batch = stale[i:i+BATCH_SIZE]
