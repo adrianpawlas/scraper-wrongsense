@@ -22,35 +22,33 @@ def parse_price(price_str: str) -> tuple[Optional[float], Optional[str]]:
         return None, None
     
     price_str = price_str.strip()
+    price_str = re.sub(r'\s+', '', price_str)
     
-    currency_pattern = r'([€$£¥]|(?:USD|EUR|GBP|JPY|CZK|PLN|HUF|RON))'
+    currency_map = {
+        '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY',
+        'USD': 'USD', 'EUR': 'EUR', 'GBP': 'GBP', 'JPY': 'JPY',
+        'CZK': 'CZK', 'PLN': 'PLN', 'HUF': 'HUF', 'RON': 'RON'
+    }
     
-    price_pattern = r'[\d,]+\.?\d*'
-    
-    match = re.search(price_pattern, price_str.replace(',', '.'))
-    if not match:
-        return None, None
+    currency = 'EUR'
+    for sym, curr in currency_map.items():
+        if sym in price_str.upper():
+            currency = curr
+            price_str = price_str.replace(sym, '').replace(sym.lower(), '')
+            break
     
     try:
-        price_value = float(match.group().replace(',', ''))
+        price_value = float(price_str.replace(',', '.'))
     except ValueError:
         return None, None
     
-    currency_match = re.search(currency_pattern, price_str, re.IGNORECASE)
-    if currency_match:
-        currency = currency_match.group().upper()
-        if currency == '$':
-            currency = 'USD'
-        elif currency == '€':
-            currency = 'EUR'
-        elif currency == '£':
-            currency = 'GBP'
-        elif currency == '¥':
-            currency = 'JPY'
-    else:
-        currency = 'EUR'
-    
     return price_value, currency
+
+
+def format_price(value: float, currency: str) -> str:
+    if currency == 'EUR':
+        return f"{value:.2f}EUR"
+    return f"{value}{currency}"
 
 
 def parse_prices(price_data: str) -> list[str]:
@@ -59,23 +57,33 @@ def parse_prices(price_data: str) -> list[str]:
     
     prices = []
     
-    patterns = [
-        r'(?:USD|EUR|GBP|JPY|CZK|PLN|HUF|RON)[\s]*[\d,]+\.?\d*',
-        r'[€$£¥][\s]*[\d,]+\.?\d*',
-        r'[\d,]+\.?\d*\s*(?:USD|EUR|GBP|JPY|CZK|PLN|HUF|RON)',
-    ]
+    cleaned = re.sub(r'\s+', '', price_data)
     
-    for pattern in patterns:
-        matches = re.findall(pattern, price_data, re.IGNORECASE)
+    currency_map = {
+        'EUR': 'EUR', 'USD': 'USD', 'GBP': 'GBP', 'JPY': 'JPY',
+        'CZK': 'CZK', 'PLN': 'PLN', 'HUF': 'HUF', 'RON': 'RON',
+        '€': 'EUR', '$': 'USD', '£': 'GBP', '¥': 'JPY'
+    }
+    
+    for curr, std in currency_map.items():
+        pattern = rf'([{re.escape(curr)}]?[\d,]+\.?\d*{re.escape(curr)}?)'
+        matches = re.findall(pattern, cleaned, re.IGNORECASE)
         for match in matches:
-            cleaned = re.sub(r'\s+', '', match.strip())
-            if cleaned:
-                prices.append(cleaned)
+            m = match.strip()
+            for sym, std_curr in currency_map.items():
+                if sym in m.upper():
+                    m = m.replace(sym, '').replace(sym.lower(), '')
+                    try:
+                        val = float(m.replace(',', '.'))
+                        prices.append(format_price(val, std_curr))
+                        break
+                    except ValueError:
+                        pass
     
     if not prices and price_data:
         value, currency = parse_price(price_data)
         if value is not None:
-            prices.append(f"{value}{currency}")
+            prices.append(format_price(value, currency))
     
     return prices
 

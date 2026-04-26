@@ -46,12 +46,12 @@ class SigLIPEmbedder:
             inputs = self.processor(images=image, return_tensors="pt")
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
-            with torch.no_grad():
-                outputs = self.model.get_image_features(**inputs)
-                if hasattr(outputs, 'pooler_output'):
-                    embedding = outputs.pooler_output.squeeze().cpu().numpy()
-                else:
-                    embedding = outputs.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()
+            vision_outputs = self.model.vision_model(**inputs)
+            pooled = vision_outputs.pooler_output
+            if pooled is not None:
+                embedding = pooled.squeeze().cpu().numpy()
+            else:
+                embedding = vision_outputs.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()
             
             return embedding
             
@@ -72,14 +72,12 @@ class SigLIPEmbedder:
                 if 'attention_mask' in inputs:
                     inputs['attention_mask'] = inputs['attention_mask'][:, :max_tokens]
             
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            
-            with torch.no_grad():
-                outputs = self.model.get_text_features(**inputs)
-                if hasattr(outputs, 'pooler_output'):
-                    embedding = outputs.pooler_output.squeeze().cpu().numpy()
-                else:
-                    embedding = outputs.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()
+            text_outputs = self.model.text_model(**inputs)
+            pooled = text_outputs.pooler_output
+            if pooled is not None:
+                embedding = pooled.squeeze().cpu().numpy()
+            else:
+                embedding = text_outputs.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()
             
             return embedding
             
