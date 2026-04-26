@@ -145,26 +145,31 @@ class SupabaseImporter:
         new_norm = self.normalize_for_comparison(new_data)
         existing_norm = self.normalize_for_comparison(existing)
         for key in ['title', 'description', 'price', 'sale', 'image_url', 'additional_images', 'size', 'gender']:
-            if new_norm.get(key, '') != existing_norm.get(key, ''):
+if new_norm.get(key, '') != existing_norm.get(key, ''):
                 return True
         return False
 
-    def needs_new_embedding(self, existing: dict, new_data: dict) -> bool:
-        if not existing:
-            return True
-        existing_url = existing.get('image_url', '') or ''
-        new_url = new_data.get('image_url') or ''
-        return existing_url.strip().lower() != new_url.strip().lower()
-
     def get_existing_products(self) -> dict:
         try:
-            response = self.client.table('products').select('id, product_url, image_url, title, created_at').eq('source', 'scraper-wrongsense').execute()
+            response = self.client.table('products').select('id, product_url, image_url, title, image_embedding, info_embedding, created_at').eq('source', 'scraper-wrongsense').execute()
             if hasattr(response, 'data') and response.data:
                 return {p['product_url']: p for p in response.data}
             return {}
         except Exception as e:
             print(f"Error fetching existing products: {e}")
             return {}
+
+    def needs_new_embedding(self, existing: dict, new_data: dict) -> bool:
+        if not existing:
+            return True
+        existing_url = existing.get('image_url', '') or ''
+        new_url = new_data.get('image_url') or ''
+        if existing_url.strip().lower() != new_url.strip().lower():
+            return True
+        existing_emb = existing.get('image_embedding')
+        if existing_emb is None or existing_emb == '' or existing_emb == 'null':
+            return True
+        return False
 
     def build_record(self, product: dict, image_embedding=None, info_embedding=None) -> dict:
         product_id = f"ws_{uuid.uuid4().hex[:12]}"
