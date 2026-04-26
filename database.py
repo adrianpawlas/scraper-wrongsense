@@ -216,9 +216,11 @@ class SupabaseImporter:
 
     def batch_upsert(self, batch: list, existing_products: dict, products_with_embeddings: list) -> None:
         records_to_insert = []
-        existing_by_url = {p['product_url']: p for p in existing_products}
+        existing_by_url = {str(p['product_url']): dict(p) for p in existing_products.values() if isinstance(p, dict) and 'product_url' in p}
         
         for product in products_with_embeddings:
+            if not isinstance(product, dict):
+                continue
             product_url = product.get('product_url', '')
             if not product_url:
                 continue
