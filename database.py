@@ -145,7 +145,7 @@ class SupabaseImporter:
         new_norm = self.normalize_for_comparison(new_data)
         existing_norm = self.normalize_for_comparison(existing)
         for key in ['title', 'description', 'price', 'sale', 'image_url', 'additional_images', 'size', 'gender']:
-if new_norm.get(key, '') != existing_norm.get(key, ''):
+            if new_norm.get(key, '') != existing_norm.get(key, ''):
                 return True
         return False
 
