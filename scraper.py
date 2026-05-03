@@ -148,7 +148,6 @@ class WrongSenseScraper:
             'product_url': product_url,
             'title': None,
             'brand': 'Wrong Sense',
-            'description': None,
             'price': None,
             'sale': None,
             'images': [],
@@ -171,7 +170,9 @@ class WrongSenseScraper:
                 '[class*="product-price"]',
                 '.price',
                 '#price',
-                '[class*="price-container"]'
+                '[class*="price-container"]',
+                '.price-item--regular',
+                '.price__sale'
             ]
             for selector in price_selectors:
                 price_el = await self.page.query_selector(selector)
@@ -182,6 +183,20 @@ class WrongSenseScraper:
                         break
         except Exception:
             pass
+        
+        if not product_data['price']:
+            try:
+                meta_price = await self.page.evaluate('''() => {
+                    const meta = document.querySelector('meta[property="product:price:amount"]');
+                    if (meta) return meta.content;
+                    const priceEl = document.querySelector('[data-price]');
+                    if (priceEl) return priceEl.getAttribute('data-price');
+                    return null;
+                }''')
+                if meta_price:
+                    product_data['price'] = meta_price
+            except Exception:
+                pass
         
         if not product_data['price']:
             try:
@@ -264,7 +279,10 @@ class WrongSenseScraper:
                             if offers:
                                 if isinstance(offers, list):
                                     offers = offers[0]
-                                product_data['price'] = offers.get('price') or offers.get('highPrice')
+                                price_val = offers.get('price') or offers.get('highPrice')
+                                currency = offers.get('priceCurrency') or 'EUR'
+                                if price_val:
+                                    product_data['price'] = f"{price_val} {currency}"
                         json_data['image'] = product_data.get('image')
                         product_data['metadata']['json_ld'] = json_data
                 except json.JSONDecodeError:
