@@ -36,6 +36,7 @@ case "$MODE" in
         ;;
     all|"")
         log "Running full pipeline..."
+        rm -f "$SCRIPT_DIR/scraped_products.json" "$SCRIPT_DIR/products_with_embeddings.json" "$SCRIPT_DIR/product_urls.txt" 2>/dev/null || true
         python main.py --all
         ;;
     *)

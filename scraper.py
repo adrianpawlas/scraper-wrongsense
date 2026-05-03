@@ -322,6 +322,7 @@ class WrongSenseScraper:
                 product_data['category_url'] = self._extract_category_from_url(url)
                 all_products.append(product_data)
                 print(f"  Title: {product_data.get('title', 'N/A')}")
+                print(f"  Price: {product_data.get('price', 'N/A')}")
                 print(f"  Images: {len(product_data.get('images', []))}")
             except Exception as e:
                 print(f"  Error: {e}")
